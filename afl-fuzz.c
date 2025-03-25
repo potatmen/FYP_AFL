@@ -1474,8 +1474,7 @@ static void read_testcases(void) {
 
   for (i = 0; i < nl_cnt; i++) {
 
-    if(UR(10) > 7) continue;
-
+    
     struct stat st;
 
     u8* fn = alloc_printf("%s/%s", in_dir, nl[i]->d_name);

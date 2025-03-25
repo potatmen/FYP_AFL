@@ -37,15 +37,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <set>
+#include <unordered_map>
+
+#include <algorithm>
 
 #include "llvm/ADT/Statistic.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
+using namespace std;
 
 namespace {
 
@@ -58,9 +66,18 @@ namespace {
 
       bool runOnModule(Module &M) override;
 
-      // StringRef getPassName() const override {
-      //  return "American Fuzzy Lop Instrumentation";
-      // }
+      void calcSizes(int v);
+
+      void distribute(int v, const set<int> &available);
+
+      string getBasicBlockId(BasicBlock &BB);
+
+      static const int MAX_N = 10000;
+
+      vector<int> g[MAX_N];
+      bool used[MAX_N];
+      int sz[MAX_N];
+      set<int> distribution[MAX_N];
 
   };
 
@@ -70,7 +87,77 @@ namespace {
 char AFLCoverage::ID = 0;
 
 
+string AFLCoverage::getBasicBlockId(BasicBlock &BB){
+  std::string blockID;
+  raw_string_ostream rso(blockID);
+  BB.printAsOperand(rso, false); // Print as operand (e.g., "%0", "%1")
+  rso.flush();
+  const char * name = "";
+  Instruction &lastInst = BB.back();
+  int line = 0;
+  if(DILocation *lastLoc = lastInst.getDebugLoc()){
+    name = lastLoc->getFilename().data();
+    line = lastLoc->getLine();
+  }
+  string fileName = name;
+  return blockID + "$" + fileName + "$" + to_string(line);
+}
+
+void AFLCoverage::calcSizes(int v){
+  sz[v] = 1;
+  used[v] = true;
+  for (int to : g[v]) {
+    if(used[to]) continue;
+    calcSizes(to);
+    sz[v] += sz[to];
+  }
+}
+
+void AFLCoverage::distribute(int v, const set<int> &available){
+  
+  used[v] = true;
+
+  if(available.size() == 0) return;
+
+  vector<pair<int, int>> sizes;
+  int sum = 0;
+  for (int to : g[v]) {
+    if(used[to])continue;
+    sizes.push_back(make_pair(sz[to], to));
+    sum += sz[to];
+  }
+  std::sort(sizes.begin(), sizes.end());
+  int fuzzNumber = available.size();
+  int eachFuzzer = (sum / fuzzNumber) + (sum % fuzzNumber != 0);
+
+  int idSz = 0;
+  int currentResp = 0;
+  for (int i : available) {
+    while (idSz < sizes.size() &&
+           currentResp + sizes[idSz].first <= eachFuzzer) {
+      currentResp += sizes[idSz].first;
+      distribution[sizes[idSz].second].insert(i);
+      idSz++;
+    }
+    if (idSz < sizes.size()) {
+      int nodeId = sizes[idSz].second;
+      currentResp -= eachFuzzer;
+      if (currentResp == 0)
+        continue;
+      distribution[nodeId].insert(i);
+    } else {
+      idSz = 0;
+    }
+  }
+  for (int to : g[v]) {
+    if(used[to])continue;
+
+    distribute(to, distribution[to]);
+  }
+}
+
 bool AFLCoverage::runOnModule(Module &M) {
+
 
   LLVMContext &C = M.getContext();
 
@@ -113,11 +200,71 @@ bool AFLCoverage::runOnModule(Module &M) {
 
   /* Instrument all the things! */
 
-  int inst_blocks = 0;
+  map<BasicBlock *, int> mp;
+  
+  bool isRoot[MAX_N];
+  fill(isRoot, isRoot + MAX_N, true);
+  int cnt = 0;
+  for (auto &F : M){
+    for (auto &BB : F) {
+      
+      BasicBlock * ptrBB = &BB;
 
-  for (auto &F : M)
+      if(!mp.count(ptrBB)){
+        mp[ptrBB] = cnt++;
+      }
+
+      for(BasicBlock *Pred : predecessors(&BB)){
+
+
+        if(!mp.count(Pred)){
+          mp[Pred] = cnt++;
+        }
+
+        int parentNode = mp[Pred];
+        int childNode = mp[ptrBB];
+        g[parentNode].push_back(childNode);
+        isRoot[childNode] = false;
+        //ACTF("Block id of the parent is %s for block %s \n", parentID.c_str(), bbId.c_str());
+      }
+    }
+  }
+
+  int numberOfFuzzers = 10;
+
+  for (size_t i = 0; i < cnt; i++)
+  {
+    if(isRoot[i]){
+      for (size_t j = 1; j <= numberOfFuzzers; j++)
+      {
+        distribution[i].insert(j);
+      }
+      calcSizes(i);
+    }
+  }
+  fill(used, used + MAX_N, false);
+  for (size_t i = 0; i < cnt; i++) {
+    if (isRoot[i]) {
+     // errs() << "Now block id: "<<  i << "\n";
+      distribute(i, distribution[i]);
+    }
+  }
+
+
+  int inst_blocks = 0;
+  int fuzzerId = 3;
+  for (auto &F : M){
     for (auto &BB : F) {
 
+
+      BasicBlock * ptrBB = &BB;
+      //errs() << "Responsible fuzzers for block with ptr " << ptrBB << " are : ";
+
+      //for(int id: distribution[mp[ptrBB]]){
+      //  errs() << id << " ";
+      //}
+      //errs() << "\n";
+      if(!distribution[mp[ptrBB]].count(fuzzerId)) continue;
       BasicBlock::iterator IP = BB.getFirstInsertionPt();
       IRBuilder<> IRB(&(*IP));
 
@@ -159,6 +306,8 @@ bool AFLCoverage::runOnModule(Module &M) {
       inst_blocks++;
 
     }
+  }
+
 
   /* Say something nice. */
 
@@ -179,7 +328,6 @@ bool AFLCoverage::runOnModule(Module &M) {
 
 static void registerAFLPass(const PassManagerBuilder &,
                             legacy::PassManagerBase &PM) {
-
   PM.add(new AFLCoverage());
 
 }
