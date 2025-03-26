@@ -144,14 +144,14 @@ bool AFLCoverage::runOnModule(Module &M) {
 
   const char* env_var_fuzz_num_value = getenv(env_var_fuzz_num);
   int numberOfFuzzers = 1;
-  int numberOfFuzzers = atoi(env_var_fuzz_num_value);
+   numberOfFuzzers = atoi(env_var_fuzz_num_value);
   
 
   const char* env_var_fuzz_id = "FUZZERID";
 
   const char* env_var_fuzz_id_value = getenv(env_var_fuzz_id);
   int fuzzerId = 1;
-  int fuzzerId = atoi(env_var_fuzz_id_value);
+   fuzzerId = atoi(env_var_fuzz_id_value);
   
 
   ACTF("Number of fuzzers is %d and fuzzer id is %d", numberOfFuzzers, fuzzerId);
