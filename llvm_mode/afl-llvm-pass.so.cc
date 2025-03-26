@@ -159,7 +159,7 @@ void AFLCoverage::distribute(int v, const set<int> &available){
 bool AFLCoverage::runOnModule(Module &M) {
 
 
-  errs() << "We have started to roll\n";
+ ACTF("We have started to roll");
 
 
   LLVMContext &C = M.getContext();
