@@ -154,6 +154,8 @@ bool AFLCoverage::runOnModule(Module &M) {
   int fuzzerId = atoi(env_var_fuzz_id_value);
   
 
+  ACTF("Number of fuzzers is %d and fuzzer id is %d", numberOfFuzzers, fuzzerId);
+
   LLVMContext &C = M.getContext();
 
   IntegerType *Int8Ty  = IntegerType::getInt8Ty(C);
