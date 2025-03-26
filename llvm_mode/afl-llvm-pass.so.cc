@@ -159,8 +159,19 @@ void AFLCoverage::distribute(int v, const set<int> &available){
 bool AFLCoverage::runOnModule(Module &M) {
 
 
- ACTF("We have started to roll");
+  const char* env_var_fuzz_num = "FUZZERS";
 
+  const char* env_var_fuzz_num_value = getenv(env_var_fuzz_num);
+
+  int numberOfFuzzers = atoi(env_var_fuzz_num_value);
+  
+
+  const char* env_var_fuzz_id = "FUZZERID";
+
+  const char* env_var_fuzz_id_value = getenv(env_var_fuzz_id);
+
+  int fuzzerId = atoi(env_var_fuzz_id_value);
+  
 
   LLVMContext &C = M.getContext();
 
@@ -233,7 +244,6 @@ bool AFLCoverage::runOnModule(Module &M) {
     }
   }
 
-  int numberOfFuzzers = 10;
 
   for (size_t i = 0; i < cnt; i++)
   {
@@ -255,7 +265,6 @@ bool AFLCoverage::runOnModule(Module &M) {
 
 
   int inst_blocks = 0;
-  int fuzzerId = 3;
   for (auto &F : M){
     for (auto &BB : F) {
 
@@ -264,7 +273,7 @@ bool AFLCoverage::runOnModule(Module &M) {
       //errs() << "Responsible fuzzers for block with ptr " << ptrBB << " are : ";
 
       //for(int id: distribution[mp[ptrBB]]){
-      //  errs() << id << " ";
+       // errs() << id << " ";
       //}
       //errs() << "\n";
       if(!distribution[mp[ptrBB]].count(fuzzerId)) continue;
