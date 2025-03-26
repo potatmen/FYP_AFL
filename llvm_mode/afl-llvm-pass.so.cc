@@ -70,8 +70,6 @@ namespace {
 
       void distribute(int v, const set<int> &available);
 
-      string getBasicBlockId(BasicBlock &BB);
-
       static const int MAX_N = 10000;
 
       vector<int> g[MAX_N];
@@ -85,23 +83,6 @@ namespace {
 
 
 char AFLCoverage::ID = 0;
-
-
-string AFLCoverage::getBasicBlockId(BasicBlock &BB){
-  std::string blockID;
-  raw_string_ostream rso(blockID);
-  BB.printAsOperand(rso, false); // Print as operand (e.g., "%0", "%1")
-  rso.flush();
-  const char * name = "";
-  Instruction &lastInst = BB.back();
-  int line = 0;
-  if(DILocation *lastLoc = lastInst.getDebugLoc()){
-    name = lastLoc->getFilename().data();
-    line = lastLoc->getLine();
-  }
-  string fileName = name;
-  return blockID + "$" + fileName + "$" + to_string(line);
-}
 
 void AFLCoverage::calcSizes(int v){
   sz[v] = 1;
