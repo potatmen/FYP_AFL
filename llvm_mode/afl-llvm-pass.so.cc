@@ -140,14 +140,14 @@ void AFLCoverage::distribute(int v, const set<int> &available){
 bool AFLCoverage::runOnModule(Module &M) {
 
 
-  const char* env_var_fuzz_num = "FUZZERS";
+  const char* env_var_fuzz_num = "FUZZER_NUM";
 
   const char* env_var_fuzz_num_value = getenv(env_var_fuzz_num);
   int numberOfFuzzers = 1;
    numberOfFuzzers = atoi(env_var_fuzz_num_value);
   
 
-  const char* env_var_fuzz_id = "FUZZERID";
+  const char* env_var_fuzz_id = "FUZZER_ID";
 
   const char* env_var_fuzz_id_value = getenv(env_var_fuzz_id);
   int fuzzerId = 1;
