@@ -159,6 +159,9 @@ void AFLCoverage::distribute(int v, const set<int> &available){
 bool AFLCoverage::runOnModule(Module &M) {
 
 
+  errs() << "We have started to roll\n";
+
+
   LLVMContext &C = M.getContext();
 
   IntegerType *Int8Ty  = IntegerType::getInt8Ty(C);
