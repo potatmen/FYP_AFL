@@ -70,7 +70,7 @@ namespace {
 
       void distribute(int v, const set<int> &available);
 
-      static const int MAX_N = 10000;
+      static const int MAX_N = 100000;
 
       vector<int> g[MAX_N];
       bool used[MAX_N];
